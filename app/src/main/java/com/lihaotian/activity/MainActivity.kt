@@ -28,9 +28,13 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "此用户还未注册,请注册!!!", Toast.LENGTH_SHORT).show()
             } else if (password.text.toString().equals(passwd)) {
                 Toast.makeText(this, "登录成功!!!", Toast.LENGTH_SHORT).show()
-                var sucessPage: Intent = Intent(this, sucess::class.java)
-                sucessPage.putExtra("username", username.text.toString())
-                startActivity(sucessPage)
+//                var sucessPage: Intent = Intent(this, sucess::class.java)
+//                sucessPage.putExtra("username", username.text.toString())
+//                startActivity(sucessPage)
+
+                // =================================================================================
+                var testPage: Intent = Intent(this, MusicListViewActivity::class.java)
+                startActivity(testPage)
             } else {
                 Toast.makeText(this, "密码错误!!!", Toast.LENGTH_SHORT).show()
                 password.setText("")

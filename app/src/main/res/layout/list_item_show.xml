@@ -39,13 +39,13 @@
     <ImageView
         android:layout_width="0dp"
         android:layout_height="60dp"
-        android:src="@drawable/player"
+        android:src="@drawable/play"
         android:layout_weight="1"/>
 
     <ImageView
         android:layout_width="0dp"
         android:layout_height="60dp"
-        android:src="@drawable/player"
+        android:src="@drawable/play"
         android:layout_weight="1"/>
 
 

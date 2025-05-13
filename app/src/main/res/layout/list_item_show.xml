@@ -23,6 +23,7 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:text="背光"
+            android:textSize="18sp"
             android:gravity="left|center_vertical"
             android:id="@+id/song_name"/>
 
@@ -31,22 +32,18 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:text="杨宗纬"
+            android:textSize="14sp"
+            android:textColor="#808080"
             android:gravity="left|center_vertical"
             android:id="@+id/singer_name"/>
 
     </LinearLayout>
 
     <ImageView
+        android:id="@+id/list_item_play"
         android:layout_width="0dp"
         android:layout_height="60dp"
         android:src="@drawable/play"
         android:layout_weight="1"/>
-
-    <ImageView
-        android:layout_width="0dp"
-        android:layout_height="60dp"
-        android:src="@drawable/play"
-        android:layout_weight="1"/>
-
 
 </LinearLayout>

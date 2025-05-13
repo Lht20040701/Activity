@@ -6,12 +6,13 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MusicListViewActivity : AppCompatActivity() {
-
     private lateinit var listView: ListView
 
     private var musicNumbers = arrayOf(1, 2, 3, 4)
@@ -23,6 +24,11 @@ class MusicListViewActivity : AppCompatActivity() {
         setContentView(R.layout.activity_music_show)
         listView = findViewById(R.id.list_music)
         listView.adapter = MyAdapter(this, R.layout.list_item_show, musicNames, musicNumbers, musicAuthors)
+        listView.setOnItemClickListener {
+            parent, view, position, id -> {
+                Toast.makeText(this, "点击了第${position + 1}项", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     class MyAdapter(_context: Context, _resource: Int, _musicNames: Array<String>, _musicNumbers: Array<Int>, _musicAuthors: Array<String>): BaseAdapter() {
@@ -59,6 +65,3 @@ class MusicListViewActivity : AppCompatActivity() {
         }
     }
 }
-
-
-

@@ -1,12 +1,11 @@
 package com.lihaotian.activity
 
-import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
-import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -16,8 +15,11 @@ class MusicListViewActivity : AppCompatActivity() {
     private lateinit var listView: ListView
 
     private var musicNumbers = arrayOf(1, 2, 3, 4)
-    private var musicNames = arrayOf("私奔", "最好是", "晴天", "思念是一种怪病")
-    private var musicAuthors = arrayOf("郑钧", "林俊杰", "周杰伦", "张震岳")
+    private var musicNames = arrayOf("私奔", "思念是一种病", "Way Back Home", "I'll Be Back")
+    private var musicAuthors = arrayOf("郑钧", "张震岳", "Sam Feldt", "Sam Feldt")
+    private var musicFile = arrayOf(R.raw.siben, R.raw.sinianshiyizhongbing, R.raw.waybackhome, R.raw.iwillbeback)
+    private var musicCover = arrayOf(R.mipmap.siben, R.mipmap.sinianshiyizhongbing, R.mipmap.waybackhome, R.mipmap.iwillbeback)
+    private var musicColor = arrayOf(R.color.siben, R.color.sinianshiyizhongbing, R.color.waybackhome, R.color.iwillbeback)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,9 +27,14 @@ class MusicListViewActivity : AppCompatActivity() {
         listView = findViewById(R.id.list_music)
         listView.adapter = MyAdapter(this, R.layout.list_item_show, musicNames, musicNumbers, musicAuthors)
         listView.setOnItemClickListener {
-            parent, view, position, id -> {
-                Toast.makeText(this, "点击了第${position + 1}项", Toast.LENGTH_SHORT).show()
-            }
+            parent, view, position, id ->
+                var musicPlayPage: Intent = Intent(this, MusicPlayPage::class.java)
+                musicPlayPage.putExtra("songName", musicNames[position])
+                musicPlayPage.putExtra("songerName", musicAuthors[position])
+                musicPlayPage.putExtra("musicFile", musicFile[position])
+                musicPlayPage.putExtra("musicCover", musicCover[position])
+                musicPlayPage.putExtra("musicColor", musicColor[position])
+                startActivity(musicPlayPage)
         }
     }
 

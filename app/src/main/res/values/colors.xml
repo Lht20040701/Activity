@@ -3,4 +3,9 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="blue">#A4BAC6</color>
+<!--    "#43737A", "#3D4343", "#4C4E4E", "#7E3C30"-->
+    <color name="siben">#43737A</color>
+    <color name="sinianshiyizhongbing">#3D4343</color>
+    <color name="waybackhome">#4C4E4E</color>
+    <color name="iwillbeback">#7E3C30</color>
 </resources>

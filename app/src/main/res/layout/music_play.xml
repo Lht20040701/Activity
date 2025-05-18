@@ -121,7 +121,7 @@
             android:id="@+id/song_progress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:progress="20"
+            android:progress="0"
             android:max="100"
             android:thumbTint="#FFFFFFFF"
             android:progressTint="#FFFFFFFF"
@@ -136,8 +136,8 @@
             <TextView
                 android:id="@+id/current_time"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="1:23"
+                android:layout_height="match_parent"
+                android:text="0:00"
                 android:textColor="#B3FFFFFF"
                 android:textSize="12sp" />
 
@@ -150,7 +150,7 @@
                 android:id="@+id/total_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="3:45"
+                android:text="0:00"
                 android:textColor="#B3FFFFFF"
                 android:textSize="12sp" />
         </LinearLayout>

@@ -4,11 +4,15 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaPlayer.OnPreparedListener
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import java.util.concurrent.TimeUnit
 
 //播放状态
 private const val PLAYING = 0
@@ -33,6 +37,24 @@ class MusicPlayPage: AppCompatActivity() {
     //当前状态
     private var state = IDLE
 
+    // ========================================================================
+    // 进度条相关
+    private var seekBar: SeekBar? = null
+    private var currentTimeText: TextView? = null
+    private var totalTimeText: TextView? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val updateSeekBar = object : Runnable {
+        override fun run() {
+            if (mMediaPlayer != null && state == PLAYING) {
+                seekBar?.progress = mMediaPlayer!!.currentPosition
+                updateTimeText(currentTimeText, mMediaPlayer!!.currentPosition)
+                handler.postDelayed(this, 1000)
+            }
+        }
+    }
+
+    // ========================================================================
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.music_play)
@@ -48,6 +70,34 @@ class MusicPlayPage: AppCompatActivity() {
         var pageArtisName: TextView = findViewById(R.id.artist_name)
         pageArtisName.setText(songerName)
 
+        // ========================================================================
+        // 初始化进度条相关控件
+        seekBar = findViewById(R.id.song_progress)
+        currentTimeText = findViewById(R.id.current_time)
+        totalTimeText = findViewById(R.id.total_time)
+        
+        // 设置SeekBar监听器
+        seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    mMediaPlayer?.seekTo(progress)
+                    updateTimeText(currentTimeText, progress)
+                }
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                handler.removeCallbacks(updateSeekBar)
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                if (state == PLAYING) {
+                    handler.post(updateSeekBar)
+                }
+            }
+        })
+
+        // ========================================================================
+
         var albumCover: View = findViewById(R.id.album_art)
         var musicCover = intent.getIntExtra("musicCover", R.mipmap.siben) // 注意后期改默认值
         albumCover.setBackgroundResource(musicCover)
@@ -56,6 +106,10 @@ class MusicPlayPage: AppCompatActivity() {
         var musicColor = intent.getIntExtra("musicColor", R.color.siben)
         albumColor.setBackgroundResource(musicColor)
 
+        var btnBack: View = findViewById(R.id.btn_back)
+        btnBack.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
 
         play = findViewById(R.id.btn_play)
         play!!.setOnClickListener {
@@ -70,11 +124,27 @@ class MusicPlayPage: AppCompatActivity() {
 //        stop = findViewById(R.id.stop)
 //        stop!!.setOnClickListener { stop() }
     }
+
+    // ========================================================================
+    // 格式化时间显示
+    private fun formatTime(timeMs: Int): String {
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(timeMs.toLong())
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(timeMs.toLong()) % 60
+        return String.format("%d:%02d", minutes, seconds)
+    }
+
+    // 更新时间文本显示
+    private fun updateTimeText(textView: TextView?, timeMs: Int) {
+        textView?.text = formatTime(timeMs)
+    }
+    // ========================================================================
+
     // 暂停
     private fun pause() {
         mMediaPlayer!!.pause()
         state = PAUSE
         play!!.setBackgroundResource(R.drawable.play_white)
+        handler.removeCallbacks(updateSeekBar)
     }
 
     // 开始
@@ -84,6 +154,10 @@ class MusicPlayPage: AppCompatActivity() {
         } else if (state == PAUSE) {
             mMediaPlayer!!.start()
             state = PLAYING
+
+            // ========================================================================
+            handler.post(updateSeekBar)
+            // ========================================================================
         }
         play!!.setBackgroundResource(R.drawable.stop)
     }
@@ -93,6 +167,7 @@ class MusicPlayPage: AppCompatActivity() {
         mMediaPlayer!!.stop()
         state = STOP
         play!!.setBackgroundResource(R.drawable.play_white)
+        handler.removeCallbacks(updateSeekBar)
     }
 
     // 播放
@@ -124,10 +199,24 @@ class MusicPlayPage: AppCompatActivity() {
         mMediaPlayer!!.start()
         Log.d("111111","开始播放啦")
         state = PLAYING
+
+        // ========================================================================
+        // 设置进度条最大值为音频总时长
+        seekBar?.max = mMediaPlayer!!.duration
+        // 更新总时长显示
+        updateTimeText(totalTimeText, mMediaPlayer!!.duration)
+        // 开始更新进度
+        handler.post(updateSeekBar)
+        // ========================================================================
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
+        // ========================================================================
+        // 移除进度更新回调
+        handler.removeCallbacks(updateSeekBar)
+        // ========================================================================
         // Activity销毁后，释放播放器资源
         if (mMediaPlayer != null) {
             mMediaPlayer!!.release()

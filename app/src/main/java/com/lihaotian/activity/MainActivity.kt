@@ -6,6 +6,10 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.lihaotian.network.LoginRequest
+import com.lihaotian.network.RetrofitClient
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var username: EditText
@@ -17,20 +21,38 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         init()
+        
         login.setOnClickListener {
-            //SharedPreference 读
-            val sp = getSharedPreferences("user", MODE_PRIVATE)
-            var nameKey: String = "username:" + username.text.toString()
-            var passwd: String = sp.getString(nameKey,"").toString()
-            if ("".equals(passwd)) {
-                Toast.makeText(this, "此用户还未注册,请注册!!!", Toast.LENGTH_SHORT).show()
-            } else if (password.text.toString().equals(passwd)) {
-                Toast.makeText(this, "登录成功!!!", Toast.LENGTH_SHORT).show()
-                var musicListPage: Intent = Intent(this, MusicListViewActivity::class.java)
-                startActivity(musicListPage)
-            } else {
-                Toast.makeText(this, "密码错误!!!", Toast.LENGTH_SHORT).show()
-                password.setText("")
+            val usernameStr = username.text.toString()
+            val passwordStr = password.text.toString()
+            
+            if (usernameStr.isEmpty() || passwordStr.isEmpty()) {
+                Toast.makeText(this, "用户名和密码不能为空", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            lifecycleScope.launch {
+                try {
+                    val response = RetrofitClient.apiService.login(LoginRequest(usernameStr, passwordStr))
+                    if (response.success) {
+                        // 保存token和用户信息
+                        getSharedPreferences("user", MODE_PRIVATE).edit().apply {
+                            putString("token", response.token)
+                            putString("username", response.user?.username)
+                            putString("email", response.user?.email)
+                            putString("gender", response.user?.gender)
+                            apply()
+                        }
+                        
+                        Toast.makeText(this@MainActivity, "登录成功", Toast.LENGTH_SHORT).show()
+                        val musicListPage = Intent(this@MainActivity, MusicListViewActivity::class.java)
+                        startActivity(musicListPage)
+                    } else {
+                        Toast.makeText(this@MainActivity, response.message, Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "网络请求失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -38,7 +60,6 @@ class MainActivity : AppCompatActivity() {
             var regisPage: Intent = Intent(this, regisPage::class.java)
             startActivity(regisPage)
         }
-
     }
 
     fun init() {

@@ -14,6 +14,25 @@ class MusicService : Service() {
     private var currentPosition: Int = -1
     private var isPlaying: Boolean = false
     private var musicList: List<MusicItem>? = null
+    private var isPreparing: Boolean = false
+
+    // 添加观察者接口
+    interface OnPlayStateChangeListener {
+        fun onPlayStateChanged(isPlaying: Boolean)
+        fun onTrackChanged(position: Int) // 添加新的回调方法
+    }
+
+    private val listeners = mutableListOf<OnPlayStateChangeListener>()
+
+    fun addPlayStateChangeListener(listener: OnPlayStateChangeListener) {
+        if (!listeners.contains(listener)) {
+            listeners.add(listener)
+        }
+    }
+
+    fun removePlayStateChangeListener(listener: OnPlayStateChangeListener) {
+        listeners.remove(listener)
+    }
 
     inner class MusicBinder : Binder() {
         fun getService(): MusicService = this@MusicService
@@ -37,42 +56,69 @@ class MusicService : Service() {
     }
 
     fun playMusic(position: Int) {
+        if (isPreparing || position == currentPosition && isPlaying) {
+            return
+        }
+
         try {
+            isPreparing = true
             currentPosition = position
             mediaPlayer?.reset()
             mediaPlayer?.setDataSource(musicList!![position].musicUrl)
             mediaPlayer?.prepareAsync()
             mediaPlayer?.setOnPreparedListener {
+                isPreparing = false
                 it.start()
                 isPlaying = true
+                notifyPlayStateChanged()
+                notifyTrackChanged()
             }
             mediaPlayer?.setOnCompletionListener {
                 playNext()
             }
             Log.d("MusicService", "开始播放音乐: ${musicList!![position].name}")
         } catch (e: Exception) {
+            isPreparing = false
             e.printStackTrace()
             Log.e("MusicService", "播放音乐失败: ${e.message}")
         }
     }
 
+    private fun notifyPlayStateChanged() {
+        listeners.forEach { listener ->
+            listener.onPlayStateChanged(isPlaying)
+        }
+    }
+
+    private fun notifyTrackChanged() {
+        listeners.forEach { listener ->
+            listener.onTrackChanged(currentPosition)
+        }
+    }
+
     fun pauseMusic() {
-        try {
-            mediaPlayer?.pause()
-            isPlaying = false
-            Log.d("MusicService", "暂停音乐")
-        } catch (e: Exception) {
-            e.printStackTrace()
+        if (!isPreparing && isPlaying) {
+            try {
+                mediaPlayer?.pause()
+                isPlaying = false
+                notifyPlayStateChanged()
+                Log.d("MusicService", "暂停音乐")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     fun resumeMusic() {
-        try {
-            mediaPlayer?.start()
-            isPlaying = true
-            Log.d("MusicService", "恢复播放音乐")
-        } catch (e: Exception) {
-            e.printStackTrace()
+        if (!isPreparing && !isPlaying) {
+            try {
+                mediaPlayer?.start()
+                isPlaying = true
+                notifyPlayStateChanged()
+                Log.d("MusicService", "恢复播放音乐")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -91,18 +137,16 @@ class MusicService : Service() {
     }
 
     fun playNext() {
-        if (musicList != null && musicList!!.isNotEmpty()) {
-            currentPosition = (currentPosition + 1) % musicList!!.size
-            playMusic(currentPosition)
-            Log.d("MusicService", "播放下一首: ${musicList!![currentPosition].name}")
+        if (!isPreparing && musicList != null && musicList!!.isNotEmpty()) {
+            val nextPosition = (currentPosition + 1) % musicList!!.size
+            playMusic(nextPosition)
         }
     }
 
     fun playPrevious() {
-        if (musicList != null && musicList!!.isNotEmpty()) {
-            currentPosition = if (currentPosition > 0) currentPosition - 1 else musicList!!.size - 1
-            playMusic(currentPosition)
-            Log.d("MusicService", "播放上一首: ${musicList!![currentPosition].name}")
+        if (!isPreparing && musicList != null && musicList!!.isNotEmpty()) {
+            val prevPosition = if (currentPosition > 0) currentPosition - 1 else musicList!!.size - 1
+            playMusic(prevPosition)
         }
     }
 

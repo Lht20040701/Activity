@@ -32,7 +32,7 @@ private const val STOP = 2
 //空闲状态
 private const val IDLE = 3
 
-class MusicPlayPage: AppCompatActivity() {
+class MusicPlayPage: AppCompatActivity(), MusicService.OnPlayStateChangeListener {
     //播放按钮
     private var play: View? = null
     //播放器对象
@@ -75,14 +75,33 @@ class MusicPlayPage: AppCompatActivity() {
             handler.post(updateSeekBar)
             
             // 更新播放按钮状态
-            play?.setBackgroundResource(
-                if (musicService!!.isPlaying()) R.drawable.stop else R.drawable.play_white
-            )
+            updatePlayButton()
+            
+            // 添加播放状态监听
+            musicService?.addPlayStateChangeListener(this@MusicPlayPage)
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             bound = false
         }
+    }
+
+    override fun onPlayStateChanged(isPlaying: Boolean) {
+        runOnUiThread {
+            updatePlayButton()
+        }
+    }
+
+    override fun onTrackChanged(position: Int) {
+        runOnUiThread {
+            updateUI()
+        }
+    }
+
+    private fun updatePlayButton() {
+        play?.setBackgroundResource(
+            if (musicService?.isPlaying() == true) R.drawable.stop else R.drawable.play_white
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -158,18 +177,13 @@ class MusicPlayPage: AppCompatActivity() {
 
         // 设置播放/暂停按钮
         play = findViewById(R.id.btn_play)
-        // 初始化播放按钮状态
-        play?.setBackgroundResource(
-            if (musicService?.isPlaying() == true) R.drawable.stop else R.drawable.play_white
-        )
+        updatePlayButton()
         play!!.setOnClickListener {
             if (musicService != null) {
                 if (musicService!!.isPlaying()) {
                     musicService!!.pauseMusic()
-                    play!!.setBackgroundResource(R.drawable.play_white)
                 } else {
                     musicService!!.resumeMusic()
-                    play!!.setBackgroundResource(R.drawable.stop)
                 }
             }
         }
@@ -222,9 +236,7 @@ class MusicPlayPage: AppCompatActivity() {
                 updateTimeText(totalTimeText, musicService!!.getDuration())
                 updateTimeText(currentTimeText, musicService!!.getCurrentPosition())
 
-                play!!.setBackgroundResource(
-                    if (musicService!!.isPlaying()) R.drawable.stop else R.drawable.play_white
-                )
+                updatePlayButton()
             }
         }
     }
@@ -245,6 +257,7 @@ class MusicPlayPage: AppCompatActivity() {
         super.onDestroy()
         handler.removeCallbacks(updateSeekBar)
         if (bound) {
+            musicService?.removePlayStateChangeListener(this)
             unbindService(connection)
             bound = false
         }

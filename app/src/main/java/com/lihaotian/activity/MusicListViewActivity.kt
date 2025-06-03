@@ -22,7 +22,7 @@ import com.lihaotian.network.RetrofitClient
 import com.lihaotian.service.MusicService
 import kotlinx.coroutines.launch
 
-class MusicListViewActivity : AppCompatActivity() {
+class MusicListViewActivity : AppCompatActivity(), MusicService.OnPlayStateChangeListener {
     private var musicService: MusicService? = null
     private var bound = false
     private var currentPlayingPosition = -1
@@ -36,11 +36,29 @@ class MusicListViewActivity : AppCompatActivity() {
             
             // 设置音乐数据
             musicService?.setMusicData(musicList)
+            // 添加播放状态监听
+            musicService?.addPlayStateChangeListener(this@MusicListViewActivity)
             updateBottomBar()
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             bound = false
+        }
+    }
+
+    override fun onPlayStateChanged(isPlaying: Boolean) {
+        // 更新播放按钮状态
+        runOnUiThread {
+            updateBottomBar()
+            (findViewById<ListView>(R.id.list_music).adapter as MyAdapter).notifyDataSetChanged()
+        }
+    }
+
+    override fun onTrackChanged(position: Int) {
+        runOnUiThread {
+            currentPlayingPosition = position
+            updateBottomBar()
+            (findViewById<ListView>(R.id.list_music).adapter as MyAdapter).notifyDataSetChanged()
         }
     }
 
@@ -163,6 +181,7 @@ class MusicListViewActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         if (bound) {
+            musicService?.removePlayStateChangeListener(this)
             unbindService(connection)
             bound = false
         }

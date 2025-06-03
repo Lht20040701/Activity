@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.Color
 import android.os.Bundle
 import android.os.IBinder
 import android.view.View
@@ -12,13 +13,20 @@ import android.widget.BaseAdapter
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
+import com.lihaotian.network.MusicItem
+import com.lihaotian.network.RetrofitClient
 import com.lihaotian.service.MusicService
+import kotlinx.coroutines.launch
 
 class MusicListViewActivity : AppCompatActivity() {
     private var musicService: MusicService? = null
     private var bound = false
     private var currentPlayingPosition = -1
+    private var musicList: List<MusicItem> = listOf()
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -27,13 +35,7 @@ class MusicListViewActivity : AppCompatActivity() {
             bound = true
             
             // 设置音乐数据
-            musicService?.setMusicData(
-                musicFile,
-                musicNames,
-                musicAuthors,
-                musicCover,
-                musicColor
-            )
+            musicService?.setMusicData(musicList)
             updateBottomBar()
         }
 
@@ -41,13 +43,6 @@ class MusicListViewActivity : AppCompatActivity() {
             bound = false
         }
     }
-
-    private var musicNumbers = arrayOf(1, 2, 3, 4)
-    private var musicNames = arrayOf("私奔", "思念是一种病", "Way Back Home", "I'll Be Back")
-    private var musicAuthors = arrayOf("郑钧", "张震岳", "Sam Feldt", "Sam Feldt")
-    private var musicFile = arrayOf(R.raw.siben, R.raw.sinianshiyizhongbing, R.raw.waybackhome, R.raw.iwillbeback)
-    private var musicCover = arrayOf(R.mipmap.siben, R.mipmap.sinianshiyizhongbing, R.mipmap.waybackhome, R.mipmap.iwillbeback)
-    private var musicColor = arrayOf(R.color.siben, R.color.sinianshiyizhongbing, R.color.waybackhome, R.color.iwillbeback)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,10 +54,24 @@ class MusicListViewActivity : AppCompatActivity() {
         }
 
         val listView: ListView = findViewById(R.id.list_music)
-        
-        // 设置列表适配器
-        val adapter = MyAdapter(this, R.layout.list_item_show, musicNames, musicNumbers, musicAuthors)
+        val adapter = MyAdapter(this, R.layout.list_item_show)
         listView.adapter = adapter
+        
+        // 从后端获取音乐列表
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getMusicList()
+                if (response.success) {
+                    musicList = response.data
+                    musicService?.setMusicData(musicList)
+                    adapter.notifyDataSetChanged()
+                } else {
+                    Toast.makeText(this@MusicListViewActivity, response.message, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MusicListViewActivity, "获取音乐列表失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
         
         // 设置列表项点击事件
         listView.setOnItemClickListener { _, _, position, _ ->
@@ -100,38 +109,46 @@ class MusicListViewActivity : AppCompatActivity() {
                 musicService!!.playNext()
                 currentPlayingPosition = musicService!!.getCurrentMusicPosition()
                 updateBottomBar()
-                (listView.adapter as MyAdapter).notifyDataSetChanged()
+                adapter.notifyDataSetChanged()
             }
         }
     }
 
     private fun startMusicPlayActivity(position: Int) {
         val musicPlayPage = Intent(this, MusicPlayPage::class.java)
-        musicPlayPage.putExtra("songName", musicNames[position])
-        musicPlayPage.putExtra("songerName", musicAuthors[position])
-        musicPlayPage.putExtra("musicFile", musicFile[position])
-        musicPlayPage.putExtra("musicCover", musicCover[position])
-        musicPlayPage.putExtra("musicColor", musicColor[position])
+        musicPlayPage.putExtra("songName", musicList[position].name)
+        musicPlayPage.putExtra("songerName", musicList[position].author)
+        musicPlayPage.putExtra("musicUrl", musicList[position].musicUrl)
+        musicPlayPage.putExtra("coverUrl", musicList[position].coverUrl)
+        musicPlayPage.putExtra("dominantColor", musicList[position].dominantColor)
         startActivity(musicPlayPage)
     }
 
     private fun updateBottomBar() {
         if (musicService != null) {
             val position = musicService!!.getCurrentMusicPosition()
-            if (position != -1) {
+            if (position != -1 && position < musicList.size) {
                 findViewById<TextView>(R.id.bottom_music_name).text = musicService!!.getCurrentMusicName()
                 findViewById<View>(R.id.bottom_play_button).setBackgroundResource(
                     if (musicService!!.isPlaying()) R.drawable.stop else R.drawable.play_white
                 )
                 
                 // 更新底部播放栏封面图片
-                findViewById<ImageView>(R.id.bottom_music_cover).setImageResource(
-                    musicService!!.getCurrentMusicCover()
-                )
+                val coverImageView = findViewById<ImageView>(R.id.bottom_music_cover)
+                val currentCoverUrl = musicService!!.getCurrentMusicCover()
+                if (!currentCoverUrl.isNullOrEmpty()) {
+                    Glide.with(this)
+                        .load(currentCoverUrl)
+                        .placeholder(R.drawable.temp)
+                        .error(R.drawable.temp)
+                        .into(coverImageView)
+                } else {
+                    coverImageView.setImageResource(R.drawable.temp)
+                }
                 
                 // 更新底部播放栏背景颜色
-                findViewById<View>(R.id.player_controls).setBackgroundResource(
-                    musicService!!.getCurrentMusicColor()
+                findViewById<View>(R.id.player_controls).setBackgroundColor(
+                    Color.parseColor(musicService!!.getCurrentMusicColor())
                 )
             }
         }
@@ -151,15 +168,11 @@ class MusicListViewActivity : AppCompatActivity() {
         }
     }
 
-    inner class MyAdapter(_context: Context, _resource: Int, _musicNames: Array<String>, 
-                         _musicNumbers: Array<Int>, _musicAuthors: Array<String>) : BaseAdapter() {
+    inner class MyAdapter(_context: Context, _resource: Int) : BaseAdapter() {
         var context = _context
         var resource = _resource
-        var musicNumbers = _musicNumbers
-        var musicAuthors = _musicAuthors
-        var musicNames = _musicNames
 
-        override fun getCount(): Int = musicNames.size
+        override fun getCount(): Int = musicList.size
         override fun getItem(position: Int): Any = position
         override fun getItemId(position: Int): Long = position.toLong()
 
@@ -171,9 +184,10 @@ class MusicListViewActivity : AppCompatActivity() {
             val number = view.findViewById<TextView>(R.id.number)
             val playButton = view.findViewById<ImageView>(R.id.list_item_play)
 
-            musicName.text = musicNames[position]
-            musicAuthor.text = musicAuthors[position]
-            number.text = musicNumbers[position].toString()
+            val music = musicList[position]
+            musicName.text = music.name
+            musicAuthor.text = music.author
+            number.text = (position + 1).toString()
 
             // 更新播放状态图标
             if (position == musicService?.getCurrentMusicPosition()) {

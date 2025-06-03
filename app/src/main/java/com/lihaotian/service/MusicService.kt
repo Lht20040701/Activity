@@ -6,17 +6,14 @@ import android.media.MediaPlayer
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
+import com.lihaotian.network.MusicItem
 
 class MusicService : Service() {
     private var mediaPlayer: MediaPlayer? = null
     private val binder = MusicBinder()
     private var currentPosition: Int = -1
     private var isPlaying: Boolean = false
-    private var musicList: Array<Int>? = null
-    private var musicNames: Array<String>? = null
-    private var musicAuthors: Array<String>? = null
-    private var musicCovers: Array<Int>? = null
-    private var musicColors: Array<Int>? = null
+    private var musicList: List<MusicItem>? = null
 
     inner class MusicBinder : Binder() {
         fun getService(): MusicService = this@MusicService
@@ -35,32 +32,24 @@ class MusicService : Service() {
         return binder
     }
 
-    fun setMusicData(
-        list: Array<Int>,
-        names: Array<String>,
-        authors: Array<String>,
-        covers: Array<Int>,
-        colors: Array<Int>
-    ) {
+    fun setMusicData(list: List<MusicItem>) {
         musicList = list
-        musicNames = names
-        musicAuthors = authors
-        musicCovers = covers
-        musicColors = colors
     }
 
     fun playMusic(position: Int) {
         try {
             currentPosition = position
-            mediaPlayer?.release()
-            mediaPlayer = MediaPlayer.create(this, musicList!![position])
+            mediaPlayer?.reset()
+            mediaPlayer?.setDataSource(musicList!![position].musicUrl)
+            mediaPlayer?.prepareAsync()
+            mediaPlayer?.setOnPreparedListener {
+                it.start()
+                isPlaying = true
+            }
             mediaPlayer?.setOnCompletionListener {
                 playNext()
             }
-            mediaPlayer?.start()
-            isPlaying = true
-            mediaPlayer?.seekTo(0)
-            Log.d("MusicService", "开始播放音乐: ${musicNames!![position]}")
+            Log.d("MusicService", "开始播放音乐: ${musicList!![position].name}")
         } catch (e: Exception) {
             e.printStackTrace()
             Log.e("MusicService", "播放音乐失败: ${e.message}")
@@ -105,7 +94,7 @@ class MusicService : Service() {
         if (musicList != null && musicList!!.isNotEmpty()) {
             currentPosition = (currentPosition + 1) % musicList!!.size
             playMusic(currentPosition)
-            Log.d("MusicService", "播放下一首: ${musicNames!![currentPosition]}")
+            Log.d("MusicService", "播放下一首: ${musicList!![currentPosition].name}")
         }
     }
 
@@ -113,16 +102,17 @@ class MusicService : Service() {
         if (musicList != null && musicList!!.isNotEmpty()) {
             currentPosition = if (currentPosition > 0) currentPosition - 1 else musicList!!.size - 1
             playMusic(currentPosition)
-            Log.d("MusicService", "播放上一首: ${musicNames!![currentPosition]}")
+            Log.d("MusicService", "播放上一首: ${musicList!![currentPosition].name}")
         }
     }
 
     fun getCurrentMusicPosition(): Int = currentPosition
 
-    fun getCurrentMusicName(): String = musicNames?.get(currentPosition) ?: ""
-    fun getCurrentMusicAuthor(): String = musicAuthors?.get(currentPosition) ?: ""
-    fun getCurrentMusicCover(): Int = musicCovers?.get(currentPosition) ?: 0
-    fun getCurrentMusicColor(): Int = musicColors?.get(currentPosition) ?: 0
+    fun getCurrentMusicName(): String = musicList?.get(currentPosition)?.name ?: ""
+    fun getCurrentMusicAuthor(): String = musicList?.get(currentPosition)?.author ?: ""
+    fun getCurrentMusicUrl(): String = musicList?.get(currentPosition)?.musicUrl ?: ""
+    fun getCurrentMusicCover(): String = musicList?.get(currentPosition)?.coverUrl ?: ""
+    fun getCurrentMusicColor(): String = musicList?.get(currentPosition)?.dominantColor ?: "#000000"
 
     override fun onDestroy() {
         super.onDestroy()

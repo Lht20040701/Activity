@@ -4,16 +4,19 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import com.bumptech.glide.Glide
 import com.lihaotian.service.MusicService
 import java.util.concurrent.TimeUnit
 
@@ -32,8 +35,6 @@ private const val IDLE = 3
 class MusicPlayPage: AppCompatActivity() {
     //播放按钮
     private var play: View? = null
-    //暂停按钮
-//    private var stop: ImageButton? = null
     //播放器对象
     private var musicService: MusicService? = null
     private var context: Context? = null
@@ -84,8 +85,6 @@ class MusicPlayPage: AppCompatActivity() {
         }
     }
 
-    // ========================================================================
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.music_play)
@@ -96,15 +95,17 @@ class MusicPlayPage: AppCompatActivity() {
             bindService(intent, connection, Context.BIND_AUTO_CREATE)
         }
 
-        var songName = intent.getStringExtra("songName")
-        var songerName = intent.getStringExtra("songerName")
+        val songName = intent.getStringExtra("songName")
+        val songerName = intent.getStringExtra("songerName")
+        val coverUrl = intent.getStringExtra("coverUrl")
+        val dominantColor = intent.getStringExtra("dominantColor")
 
-        var pageSongName: TextView = findViewById(R.id.song_title)
-        var pageNowPlaying: TextView = findViewById(R.id.now_play)
-        pageSongName.setText(songName)
-        pageNowPlaying.setText(songName)
-        var pageArtisName: TextView = findViewById(R.id.artist_name)
-        pageArtisName.setText(songerName)
+        val pageSongName: TextView = findViewById(R.id.song_title)
+        val pageNowPlaying: TextView = findViewById(R.id.now_play)
+        pageSongName.text = songName
+        pageNowPlaying.text = songName
+        val pageArtisName: TextView = findViewById(R.id.artist_name)
+        pageArtisName.text = songerName
 
         // ========================================================================
         // 初始化进度条相关控件
@@ -134,15 +135,23 @@ class MusicPlayPage: AppCompatActivity() {
 
         // ========================================================================
 
-        var albumCover: View = findViewById(R.id.album_art)
-        var musicCover = intent.getIntExtra("musicCover", R.mipmap.siben) // 注意后期改默认值
-        albumCover.setBackgroundResource(musicCover)
+        // 加载封面图片
+        val albumCover = findViewById<ImageView>(R.id.album_art)
+        if (!coverUrl.isNullOrEmpty()) {
+            Glide.with(this)
+                .load(coverUrl)
+                .placeholder(R.drawable.temp)
+                .error(R.drawable.temp)
+                .into(albumCover)
+        } else {
+            albumCover.setImageResource(R.drawable.temp)
+        }
 
-        var albumColor: ConstraintLayout = findViewById(R.id.music_play_setting)
-        var musicColor = intent.getIntExtra("musicColor", R.color.siben)
-        albumColor.setBackgroundResource(musicColor)
+        // 设置背景颜色
+        val albumColor: ConstraintLayout = findViewById(R.id.music_play_setting)
+        albumColor.setBackgroundColor(Color.parseColor(dominantColor ?: "#000000"))
 
-        var btnBack: View = findViewById(R.id.btn_back)
+        val btnBack: View = findViewById(R.id.btn_back)
         btnBack.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
@@ -182,17 +191,30 @@ class MusicPlayPage: AppCompatActivity() {
         if (musicService != null) {
             val position = musicService!!.getCurrentMusicPosition()
             if (position != -1) {
-                var pageSongName: TextView = findViewById(R.id.song_title)
-                var pageNowPlaying: TextView = findViewById(R.id.now_play)
-                var pageArtisName: TextView = findViewById(R.id.artist_name)
-                var albumCover: View = findViewById(R.id.album_art)
-                var albumColor: ConstraintLayout = findViewById(R.id.music_play_setting)
+                val pageSongName: TextView = findViewById(R.id.song_title)
+                val pageNowPlaying: TextView = findViewById(R.id.now_play)
+                val pageArtisName: TextView = findViewById(R.id.artist_name)
+                val albumCover = findViewById<ImageView>(R.id.album_art)
+                val albumColor: ConstraintLayout = findViewById(R.id.music_play_setting)
 
                 pageSongName.text = musicService!!.getCurrentMusicName()
                 pageNowPlaying.text = musicService!!.getCurrentMusicName()
                 pageArtisName.text = musicService!!.getCurrentMusicAuthor()
-                albumCover.setBackgroundResource(musicService!!.getCurrentMusicCover())
-                albumColor.setBackgroundResource(musicService!!.getCurrentMusicColor())
+
+                // 加载封面图片
+                val currentCoverUrl = musicService!!.getCurrentMusicCover()
+                if (!currentCoverUrl.isNullOrEmpty()) {
+                    Glide.with(this)
+                        .load(currentCoverUrl)
+                        .placeholder(R.drawable.temp)
+                        .error(R.drawable.temp)
+                        .into(albumCover)
+                } else {
+                    albumCover.setImageResource(R.drawable.temp)
+                }
+
+                // 设置背景颜色
+                albumColor.setBackgroundColor(Color.parseColor(musicService!!.getCurrentMusicColor()))
 
                 // 更新进度条最大值和当前进度
                 seekBar?.max = musicService!!.getDuration()
@@ -209,30 +231,19 @@ class MusicPlayPage: AppCompatActivity() {
 
     // ========================================================================
     // 格式化时间显示
+    private fun updateTimeText(textView: TextView?, timeMs: Int) {
+        textView?.text = formatTime(timeMs)
+    }
+
     private fun formatTime(timeMs: Int): String {
         val minutes = TimeUnit.MILLISECONDS.toMinutes(timeMs.toLong())
         val seconds = TimeUnit.MILLISECONDS.toSeconds(timeMs.toLong()) % 60
         return String.format("%d:%02d", minutes, seconds)
     }
 
-    // 更新时间文本显示
-    private fun updateTimeText(textView: TextView?, timeMs: Int) {
-        textView?.text = formatTime(timeMs)
-    }
-    // ========================================================================
-
     override fun onDestroy() {
         super.onDestroy()
-
-        // ========================================================================
-        // 移除进度更新回调
         handler.removeCallbacks(updateSeekBar)
-        // ========================================================================
-        // Activity销毁后，释放播放器资源
-        if (musicService != null) {
-            musicService = null
-        }
-        // 解绑服务
         if (bound) {
             unbindService(connection)
             bound = false

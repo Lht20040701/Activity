@@ -54,8 +54,8 @@
             android:id="@+id/bottom_music_cover"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/temp"
-            android:scaleType="centerCrop"/>
+            android:scaleType="centerCrop"
+            android:src="@drawable/temp" />
 
         <TextView
             android:id="@+id/bottom_music_name"

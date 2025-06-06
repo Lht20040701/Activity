@@ -4,6 +4,7 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.GET
 
+// 加了suspend字以后，会自动切换后台线程去执行请求！！！！
 interface ApiService {
     @POST("m2/4094597-0-default/303330344")
     suspend fun login(@Body loginRequest: LoginRequest): LoginResponse
@@ -12,6 +13,7 @@ interface ApiService {
     suspend fun getMusicList(): MusicResponse
 }
 
+// 封装数据
 data class LoginRequest(
     val username: String,
     val password: String

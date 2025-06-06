@@ -76,6 +76,7 @@ class MusicListViewActivity : AppCompatActivity(), MusicService.OnPlayStateChang
         listView.adapter = adapter
         
         // 从后端获取音乐列表
+        // 使用协程解决
         lifecycleScope.launch {
             try {
                 val response = RetrofitClient.apiService.getMusicList()
